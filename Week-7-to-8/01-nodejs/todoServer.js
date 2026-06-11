@@ -39,11 +39,126 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
-  const express = require('express');
-  const bodyParser = require('body-parser');
-  
-  const app = express();
-  
-  app.use(bodyParser.json());
-  
-  module.exports = app;
+const express = require("express");
+const bodyParser = require("body-parser");
+const fs = require("fs");
+const path = require("path");
+const app = express();
+let id = 1;
+const filepath = path.join(__dirname, "todos.json");
+
+app.use(bodyParser.json());
+
+app.get("/todos", (req, res) => {
+  fs.readFile(filepath, "utf-8", (err, data) => {
+    if (err) return res.status(500).json({ error: "Error while reading file" });
+
+    res.status(200).json(JSON.parse(data));
+  });
+});
+
+app.get("/todos/:id", (req, res) => {
+  const usertodo = Number(req.params.id);
+
+  fs.readFile(filepath, "utf-8", (err, data) => {
+    if (err) return res.status(500).json({ error: "Error while reading file" });
+
+    let todos = JSON.parse(data);
+
+    let todo = todos.find((t) => t.id === usertodo);
+
+    if (!todo) {
+      return res.status(404).json({ error: "Not Found" });
+    }
+
+    res.status(200).json(todo);
+  });
+});
+
+app.post("/todos", (req, res) => {
+  let todo = {
+    id: id++,
+    title: req.body.title,
+    completed: req.body.completed,
+    description: req.body.description,
+  };
+
+  fs.readFile(filepath, "utf-8", (err, data) => {
+    if (err) return res.status(500).json({ error: "Error while reading file" });
+
+    let todos = JSON.parse(data);
+
+    todos.push(todo);
+
+    let todosString = JSON.stringify(todos);
+
+    fs.writeFile(filepath, todosString, (err) => {
+      if (err)
+        return res.status(500).json({ error: "Error while writing file" });
+
+      res.status(201).json({ id: todo.id });
+    });
+  });
+});
+
+app.put("/todos/:id", (req, res) => {
+  const todoId = Number(req.params.id);
+
+  fs.readFile(filepath, "utf-8", (err, data) => {
+    if (err) return res.status(500).json({ error: "Error while reading file" });
+
+    let todos = JSON.parse(data);
+
+    let todo = todos.find((t) => t.id === todoId);
+
+    if (!todo) {
+      return res.status(404).json({ error: "Not Found" });
+    }
+
+    todo.title = req.body.title;
+    todo.completed = req.body.completed;
+    todo.description = req.body.description;
+
+    const todosString = JSON.stringify(todos);
+
+    fs.writeFile(filepath, todosString, (err) => {
+      if (err)
+        return res.status(500).json({ error: "Error while writing file" });
+
+      res.status(200).json({ message: "Todo Updated Successfully" });
+    });
+  });
+});
+
+app.delete("/todos/:id", (req, res) => {
+  const todoId = Number(req.params.id);
+
+  fs.readFile(filepath, "utf-8", (err, data) => {
+    if (err) return res.status(500).json({ error: "Error while reading file" });
+
+    let todos = JSON.parse(data);
+
+    let todo = todos.findIndex((t) => t.id === todoId);
+
+    if (todo === -1) {
+      return res.status(404).json({ error: "Not Found" });
+    }
+
+    todos.splice(todo, 1);
+
+    const todosString = JSON.stringify(todos);
+
+    fs.writeFile(filepath, todosString, (err) => {
+      if (err)
+        return res.status(500).json({ error: "Error while writing file" });
+
+      res.status(200).json({ message: "Todo Deleted Successfully" });
+    });
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).send("Route not found");
+});
+
+module.exports = app;
